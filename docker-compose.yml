@@ -1,29 +1,72 @@
+# Master DB와 Slave DB 연동 방법:
+
+# docker compose up -d
+
+# docker network ls 입력하여 dbms-lab-replication_master-slave의 NETWORK ID 확인
+# docker inspect {NETWORK_ID} 입력하고 그 중 Master DB의 IPv4 Address 확인(ex) 172.23.0.3)
+
+# docker exec -it master bash 로 Master DB에 접속
+# mysql -u root -p 입력 후 MYSQL_ROOT_PASSWORD 입력
+# show master status; 입력 후 File(ex) mysql-bin.000003) 과 Position(ex) 157) 확인
+
+# docker exec -it slave bash 로 Slave DB에 접속
+# mysql -u root -p 입력 후 MYSQL_ROOT_PASSWORD 입력
+# 다음과 같이 입력:
+# CHANGE MASTER TO MASTER_HOST='{IPv4 Address}',
+# MASTER_USER='root',
+# MASTER_PASSWORD='{MYSQL_ROOT_PASSWORD}',
+# MASTER_LOG_FILE='{File}',
+# MASTER_LOG_POS={Position};
+# 쿼리 실행 완료 후 start slave; 입력
+# show slave status\G; 입력 후 Slave_IO_Running, Slave_SQL_Running YES로 되어있는지 확인
+
 version: '3.1'
 services:
   master:
-    image: mysql:latest
+    container_name: master
+    build:
+      context: ./
+      dockerfile: master/Dockerfile
+    platform: linux/x86_64
     ports:
       - "3306:3306"
     environment:
-      - MYSQL_REPLICATION_MODE=master
-      - MYSQL_REPLICATION_USER=repl_user
-      - MYSQL_REPLICATION_PASSWORD=
-      - MYSQL_USER=user
-      - MYSQL_PASSWORD=
-      - MYSQL_DATABASE=LAB
-      - MYSQL_ROOT_PASSWORD=
+      MYSQL_DATABASE: LAB
+      MYSQL_ROOT_USERNAME: root
+      MYSQL_ROOT_PASSWORD:
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - master-volume:/var/lib/mysql
+      - master-volume:/var/lib/mysql-files
+    networks:
+      - master-slave
   slave:
-    image: mysql:latest
+    container_name: slave
+    build:
+      context: ./
+      dockerfile: slave/Dockerfile
+    platform: linux/x86_64
     ports:
-      - "3306"
-    depends_on:
-      - master
+      - "3307:3306"
     environment:
-      - MYSQL_REPLICATION_MODE=slave
-      - MYSQL_REPLICATION_USER=repl_user
-      - MYSQL_REPLICATION_PASSWORD=
-      - MYSQL_MASTER_HOST=master
-      - MYSQL_MASTER_PORT_NUMBER=3306
-      - MYSQL_USER=user
-      - MYSQL_PASSWORD=
-      - MYSQL_MASTER_ROOT_PASSWORD=
+      MYSQL_DATABASE: LAB
+      MYSQL_ROOT_USERNAME: root
+      MYSQL_ROOT_PASSWORD:
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - slave-volume:/var/lib/mysql
+      - slave-volume:/var/lib/mysql-files
+    networks:
+      - master-slave
+
+volumes:
+  master-volume:
+  slave-volume:
+
+networks:
+  master-slave:
+    driver: bridge
