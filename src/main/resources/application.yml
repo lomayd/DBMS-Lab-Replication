@@ -1,0 +1,11 @@
+spring:
+  master:
+    username: root
+    password:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: jdbc:mysql://localhost:3306/LAB
+  slave:
+    username: root
+    password:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: jdbc:mysql://localhost:3307/LAB
